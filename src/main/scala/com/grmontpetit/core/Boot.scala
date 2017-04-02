@@ -25,10 +25,11 @@ import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import spray.can.Http
 import ActorCatalogue.system
+import com.grmontpetit.security.SslConfiguration
 
 import scala.concurrent.duration._
 
-object Boot extends App with LazyLogging {
+object Boot extends SslConfiguration with App with LazyLogging {
 
   val config = ConfigFactory.load()
   implicit val timeout = Timeout(config.getInt("service.timeout").seconds)
