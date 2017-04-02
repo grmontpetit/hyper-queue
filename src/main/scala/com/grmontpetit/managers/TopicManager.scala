@@ -18,12 +18,17 @@
 
 package com.grmontpetit.managers
 
+import java.util.concurrent.LinkedBlockingQueue
+
 import akka.actor.{Actor, Status}
 import akka.actor.Status.Status
+import com.grmontpetit.model.data.QueueData
 import com.grmontpetit.model.messages.{Consume, GetTopics, Produce}
 import com.typesafe.scalalogging.LazyLogging
 
 class TopicManager extends Actor with LazyLogging {
+
+  val queue = new LinkedBlockingQueue[QueueData]()
 
   def receive: Receive = {
     case Consume(topic: String)               => sender ! consume(topic)
@@ -34,11 +39,12 @@ class TopicManager extends Actor with LazyLogging {
 
   def consume(topic: String): Status = {
     logger.info(s"consuming topic $topic")
-    Status.Success(s"consuming topic $topic")
+    Status.Success(s"consuming topic ${queue.poll().value}")
   }
 
   def produce(topic: String, data: String): Status = {
     logger.info(s"producing topic $topic")
+    queue.put(QueueData(topic))
     Status.Success(s"producing topic $topic")
   }
 
