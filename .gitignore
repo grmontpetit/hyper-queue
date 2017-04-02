@@ -1,0 +1,29 @@
+## IntelliJ ##
+/.idea/
+/project/target
+*.iml
+*.class
+*.log
+*~
+#############
+
+## Eclipse ##
+.metadata
+.project
+#############
+
+## Other ##
+bin/**
+tmp/**
+tmp/**/*
+*.tmp
+*.swp
+.classpath
+.settings
+.loadpath
+dist/*
+target
+target/
+lib_managed/
+src_managed/
+###########
