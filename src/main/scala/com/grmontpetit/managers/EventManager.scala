@@ -50,8 +50,13 @@ class EventManager extends Actor with LazyLogging {
     case _                                    => Unit
   }
 
+  /**
+    * Consume an event from the queue from a given topic in
+    * an unblocking manner.
+    * @param topic
+    */
+  @deprecated("This consume is unblocking, unecessary because of akka router.")
   def unblockingConsume(topic: String) = {
-
     val futureEvent = askQueueInstance.pop(topic)
     futureEvent.onComplete {
       case Success(event) =>
@@ -63,6 +68,12 @@ class EventManager extends Actor with LazyLogging {
     }
   }
 
+  /**
+    * Consume an event from the queue from a given topic in a
+    * blocking manner.
+    * @param topic The topic to consume from.
+    * @return The [[Event]] wrapped inside an [[ItemConsumed]] object.
+    */
   def blockingConsume(topic: String): Status = {
     val futureEvent = askQueueInstance.pop(topic)
     val result = Await.result(futureEvent, 6.seconds)
@@ -73,24 +84,45 @@ class EventManager extends Actor with LazyLogging {
     }
   }
 
+  /**
+    * Adds an event into a topic. If the topic doesn't exits,
+    * the [[HyperQueue]] will create it.
+    * @param topic The topic to add to / create
+    * @param event The event to add.
+    * @return The [[Event]] wrapped inside an [[ItemProduced]] object.
+    */
   def produce(topic: String, event: Event): Status = {
     logger.info(s"producing event $event for topic $topic")
     askQueueInstance.push(topic, event)
     Status.Success(ItemProduced(event))
   }
 
+  /**
+    * Retrieves all topics from the [[HyperQueue]]
+    * @return The the topics as an instance of a [[List]] wrapped
+    *         inside an [[ItemsInfo]] object.
+    */
   def getTopics(): Status = {
     val topics = askQueueInstance.getTopicList
     logger.info(s"returning current topics: $topics")
     Status.Success(ItemsInfo(topics.toList.map(Topic)))
   }
 
+  /**
+    * Retrieves all event of a given topic from the [[HyperQueue]].
+    * @param topic The topic to retrieve from.
+    * @return A [[List]] of [[Event]] wrapped inside an [[ItemsInfo]] object.
+    */
   def getTopicEvents(topic: String): Status = {
     logger.info(s"Retrieving all events for topic $topic")
     val events = askQueueInstance.getTopicEvents(topic)
     Status.Success(ItemsInfo(events.toList.map(event => Event(event.id, event.value))))
   }
 
+  /**
+    * Ask the [[QueueManager]] to have access to the [[HyperQueue]].
+    * @return The [[HyperQueue]] instance.
+    */
   def askQueueInstance: HyperQueue = Await.result(queueManager ? GetQueueInstance, 2.seconds).asInstanceOf[HyperQueue]
 
 }

@@ -42,6 +42,7 @@ object ActorCatalogue {
     val brokerService = classOf[HyperQueueServiceActor]
     val broker = system.actorOf(Props(brokerService), brokerService.getName)
     val eventManager = classOf[EventManager]
+    // Creates multiple actors to handle production and consumption of events.
     system.actorOf(Props(eventManager).withRouter(RoundRobinPool(nrOfInstances = concurrentConnections)),
       eventManager.getName)
     actorList.foreach(ref => {

@@ -49,21 +49,6 @@ class HyperQueue() {
   }
 
   /**
-    * Try to pop the queue for a given topic. Waits
-    * 5 seconds, fails the future if no element are
-    * added while waiting.
-    * @param topic The topic to add an event to.
-    * @return An [[Event]] wrapped into a [[scala.concurrent.Future]]
-    */
-  def pop2(topic: String): Future[Event] = {
-    if (this.queue.containsKey(topic)) {
-      Future.successful(queue.get(topic).poll(5, TimeUnit.SECONDS))
-    } else {
-      Future.failed(new TopicNotFoundException)
-    }
-  }
-
-  /**
     * Pops the queue in a polling fashion for 5 seconds.
     * @param topic The topic to pop.
     * @return The [[Event]] wrapped in a [[Future]]
