@@ -32,7 +32,7 @@ class TopicService(implicit context: ActorRefFactory) extends HyperQueueApi {
   def actorRefFactory = context
   import context.dispatcher
 
-  def routes = produceTopic
+  def routes = getTopics ~ consumeTopic ~ produceTopic
 
   lazy val topicManager = ActorCatalogue.getActor(classOf[TopicManager])
   val configuration = ConfigFactory.load()

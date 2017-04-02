@@ -39,7 +39,7 @@ class TopicManager extends Actor with LazyLogging {
 
   def produce(topic: String, data: String): Status = {
     logger.info(s"producing topic $topic")
-    Status.Success(s"consuming topic $topic")
+    Status.Success(s"producing topic $topic")
   }
 
   def getTopics(): Status = {
