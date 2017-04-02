@@ -18,19 +18,23 @@
 
 package com.grmontpetit.model
 
-import com.grmontpetit.model.data.{NewUser, SystemErrors, Topic}
+import com.grmontpetit.model.data.{ConnectionClosed, Error, Event, ModelObject, Topic}
 import spray.httpx.SprayJsonSupport
 import spray.json._
 
 object JsonModelObject extends DefaultJsonProtocol with SprayJsonSupport {
-  implicit val newUserTopic = jsonFormat1(NewUser)
-  implicit val systemErrors = jsonFormat1(SystemErrors)
+  implicit val eventInfo = jsonFormat2(Event)
+  implicit val topicInfo = jsonFormat1(Topic)
+  implicit val errorInfo = jsonFormat1(Error)
+  implicit val connectionClosedInfo = jsonFormat1(ConnectionClosed)
 
-  implicit object ModelObjectJsonFormat extends RootJsonFormat[Topic] {
-    def write(obj: Topic) = obj match {
-      case o: NewUser      => o.toJson
-      case o: SystemErrors => o.toJson
-      case _               => throw new DeserializationException("This object doesn't have a json representation.")
+  implicit object ModelObjectJsonFormat extends RootJsonFormat[ModelObject] {
+    def write(obj: ModelObject) = obj match {
+      case o: Event             => o.toJson
+      case o: Topic             => o.toJson
+      case o: Error             => o.toJson
+      case o: ConnectionClosed  => o.toJson
+      case _                    => throw new DeserializationException("This object doesn't have a json representation.")
     }
     def read(value: JsValue) = throw new DeserializationException("Not Implemented")
   }

@@ -18,9 +18,9 @@
 
 package com.grmontpetit.apis
 
-import com.grmontpetit.model.data.Topic
-import com.grmontpetit.model.exceptions.HyperQueueException
+import com.grmontpetit.model.exceptions.{HyperQueueException, TopicNotFoundException}
 import com.grmontpetit.model.JsonModelObject._
+import com.grmontpetit.model.data.ModelObject
 import spray.http.MediaTypes._
 import spray.http.{HttpEntity, HttpResponse, StatusCodes}
 import spray.http.StatusCodes._
@@ -34,15 +34,28 @@ object HyperQueueApi {
   trait HyperQueueResponseSuccess {
     def marshal(): HttpResponse
   }
-  trait HyperQueueResponseFailure {
+  trait HyperQueueResponseFailure extends Exception {
     def marshal(): HttpResponse
   }
 
-  case class ItemConsumed(item: Topic) extends HyperQueueResponseSuccess {
+  case class ItemConsumed(item: ModelObject) extends HyperQueueResponseSuccess {
     def marshal() = HttpResponse(StatusCodes.OK, entity = HttpEntity(`application/json`, item.toJson.toString))
   }
-  case class ItemProduced(item: Topic) extends HyperQueueResponseFailure {
+  case class ItemProduced(item: ModelObject) extends HyperQueueResponseSuccess {
     def marshal() = HttpResponse(StatusCodes.Created, entity = HttpEntity(`application/json`, item.toJson.toString))
+  }
+  case class ItemsInfo(items: List[ModelObject]) extends HyperQueueResponseSuccess {
+    val json = JsObject("items" -> items.toJson, "total" -> JsNumber(items.size))
+    def marshal() = HttpResponse(StatusCodes.OK, entity = HttpEntity(`application/json`, items.toJson.toString))
+  }
+  case class ItemInfo(item: ModelObject) extends HyperQueueResponseSuccess {
+    def marshal() = HttpResponse(StatusCodes.OK, entity = HttpEntity(`application/json`, item.toJson.toString()))
+  }
+  case class ItemError(item: ModelObject) extends HyperQueueResponseFailure {
+    def marshal() = HttpResponse(StatusCodes.InternalServerError, entity = HttpEntity(`application/json`, item.toJson.toString()))
+  }
+  case class ItemTimeout(item: ModelObject) extends HyperQueueResponseFailure {
+    def marshal() = HttpResponse(StatusCodes.NetworkConnectTimeout, entity = HttpEntity(`application/json`, item.toJson.toString()))
   }
 
 }
@@ -54,11 +67,17 @@ abstract class HyperQueueApi extends HttpService {
 
   val futureHandler: PartialFunction[Try[Any], StandardRoute] = {
     case Success(response: HyperQueueResponseSuccess) =>
-      complete(response.marshal)
+      complete(response.marshal())
+    case Success(response: TopicNotFoundException)    =>
+      complete(response.marshal())
     case Failure(error: HyperQueueResponseFailure)    =>
-      complete(error.marshal)
-    case Failure(e: Exception)              =>
-      complete(HyperQueueException(e).marshal)
+      complete(error.marshal())
+    case Failure(error: TopicNotFoundException)       =>
+      complete(error.marshal())
+    case Success(e: Exception)                        =>
+      complete(HyperQueueException(e).marshal())
+    case Failure(e: Exception)                        =>
+      complete(HyperQueueException(e).marshal())
     case unknown: Any                                 =>
       complete(HttpResponse(InternalServerError).withEntity(unknown.toString))
   }

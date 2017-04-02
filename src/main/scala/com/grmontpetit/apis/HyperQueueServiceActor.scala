@@ -32,10 +32,15 @@ trait HyperQueueService  extends HttpService {
 
   implicit val arf = actorRefFactory
 
-  // Map Spray rejections to our standard response for rejections.
+  /**
+    * Marshall a json serialization error that can be returned
+    * as json. The json is wrapped inside an HttpResponse object.
+    * @return An http response object [[HttpResponse]] with the json error.
+    */
   def jsonifyError(response: HttpResponse): HttpResponse = {
     HyperQueueException(response.status, response.entity.asString, "No additional info").marshal()
   }
+
   implicit val rejectionHandler: RejectionHandler = RejectionHandler {
     case rejections => mapHttpResponse(jsonifyError) {
       RejectionHandler.Default(rejections)
@@ -43,6 +48,7 @@ trait HyperQueueService  extends HttpService {
   }
 
   val services: Seq[HyperQueueApi] = Seq(
+    new EventService,
     new TopicService
   )
 

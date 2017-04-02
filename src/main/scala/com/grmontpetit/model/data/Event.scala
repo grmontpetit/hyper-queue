@@ -18,6 +18,8 @@
 
 package com.grmontpetit.model.data
 
-sealed trait Topic
-case class NewUser(userId: Int) extends Topic
-case class SystemErrors(errorMessage: String) extends Topic
+sealed trait ModelObject
+case class Event(id: String, value: String) extends ModelObject
+case class Topic(name: String) extends ModelObject
+case class Error(message: String) extends ModelObject
+case class ConnectionClosed(message: String) extends ModelObject

@@ -19,15 +19,19 @@
 package com.grmontpetit.core
 
 import akka.actor.{ActorRef, ActorSelection, ActorSystem, Props}
+import akka.routing.RoundRobinPool
 import com.grmontpetit.apis.HyperQueueServiceActor
-import com.grmontpetit.managers.TopicManager
+import com.grmontpetit.managers.{EventManager, QueueManager}
+import com.typesafe.config.ConfigFactory
 
 object ActorCatalogue {
 
   implicit val system = ActorSystem("hyper-queue")
+  val config = ConfigFactory.load()
+  val concurrentConnections = config.getInt("service.concurrentConnections")
 
   val actorList = Set[Class[_]] (
-    classOf[TopicManager]
+    classOf[QueueManager]
   )
 
   /**
@@ -37,6 +41,9 @@ object ActorCatalogue {
   def apply(): ActorRef = {
     val brokerService = classOf[HyperQueueServiceActor]
     val broker = system.actorOf(Props(brokerService), brokerService.getName)
+    val eventManager = classOf[EventManager]
+    system.actorOf(Props(eventManager).withRouter(RoundRobinPool(nrOfInstances = concurrentConnections)),
+      eventManager.getName)
     actorList.foreach(ref => {
       system.actorOf(Props(ref), ref.getName)
     })

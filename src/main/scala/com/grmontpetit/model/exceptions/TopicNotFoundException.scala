@@ -16,6 +16,17 @@
  * SOFTWARE.
  */
 
-package com.grmontpetit.model.data
+package com.grmontpetit.model.exceptions
 
-case class QueueData(value: String)
+import spray.http.MediaTypes._
+import spray.http.{HttpEntity, HttpResponse, StatusCodes}
+
+class TopicNotFoundException() extends RuntimeException("Topic not found") {
+  def marshal() = {
+    HttpResponse(StatusCodes.ExpectationFailed, HttpEntity(`text/plain`, "Topic not found"))
+  }
+}
+
+object TopicNotFoundException {
+  def apply(e: Exception): TopicNotFoundException = new TopicNotFoundException
+}

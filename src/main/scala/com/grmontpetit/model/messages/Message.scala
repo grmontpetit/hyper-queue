@@ -18,7 +18,11 @@
 
 package com.grmontpetit.model.messages
 
+import com.grmontpetit.model.data.Event
+
 sealed trait Message
 case class Consume(topic: String) extends Message
-case class Produce(topic: String, event: String) extends Message
+case class Produce(topic: String, event: Event) extends Message
 case class GetTopics() extends Message
+case class GetTopicEvents(topic: String) extends Message
+case class GetQueueInstance() extends Message

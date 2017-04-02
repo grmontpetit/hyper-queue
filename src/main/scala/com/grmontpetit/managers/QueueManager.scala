@@ -19,11 +19,18 @@
 package com.grmontpetit.managers
 
 import akka.actor.Actor
+import com.grmontpetit.model.data.HyperQueue
 import com.grmontpetit.model.exceptions.HyperQueueException
+import com.grmontpetit.model.messages.GetQueueInstance
 import spray.http.StatusCodes
 
+// Placeholder for the queue
 class QueueManager extends Actor {
+
+  val hyperQueue = new HyperQueue
+
   def receive = {
-    case _ => new HyperQueueException(StatusCodes.InternalServerError, "QueueManager isn't managing Queues yet.", "not implemented.")
+    case GetQueueInstance => sender ! hyperQueue
+    case _                => new HyperQueueException(StatusCodes.InternalServerError,"not implemented", "not implemented.")
   }
 }

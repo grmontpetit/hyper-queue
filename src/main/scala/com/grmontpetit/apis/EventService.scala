@@ -23,32 +23,64 @@ import akka.actor.ActorRefFactory
 import akka.util.Timeout
 import com.grmontpetit.core.ActorCatalogue
 import com.grmontpetit.managers.EventManager
-import com.grmontpetit.model.messages.GetTopics
+import com.grmontpetit.model.data.Event
+import com.grmontpetit.model.messages.{Consume, GetTopicEvents, Produce}
+import com.grmontpetit.model.JsonModelObject._
 import com.typesafe.config.ConfigFactory
-import spray.routing._
+import spray.routing.Route
+
 import scala.concurrent.duration._
 
-class TopicService (implicit context: ActorRefFactory) extends HyperQueueApi {
+class EventService(implicit context: ActorRefFactory) extends HyperQueueApi {
 
   def actorRefFactory = context
   import context.dispatcher
 
-  def routes = getTopics
+  /**
+    * Aggregates all the TopicService Spray Routes.
+    * @return An aggregated route which is
+    */
+  def routes = consumeEvent ~ produceEvent ~ getTopicEvents
 
   lazy val eventManager = ActorCatalogue.getActor(classOf[EventManager])
   val configuration = ConfigFactory.load()
   implicit val timeout = Timeout(configuration.getInt("service.timeout").seconds)
 
   /**
-    * Default route to get all the topics.
-    * @return A Spray Route to get all topics.
+    * Default route to produce a topic, using an http POST directive.
+    * @return A Spray Route to produce a topic.
     */
-  def getTopics: Route = path("") {
+  def produceEvent: Route = path(Segment) { topic =>
+    post {
+      entity(as[Event]) { event =>
+        onComplete(eventManager ? Produce(topic, event)) {
+          futureHandler
+        }
+      }
+    }
+  }
+
+  /**
+    * Default route to consume a topic, using an http GET directive.
+    * @return A Spray Route to consume an event within a topic.
+    */
+  def consumeEvent: Route = path(Segment) { topic =>
     get {
-      onComplete(eventManager ? GetTopics()) {
+      onComplete(eventManager ? Consume(topic)) {
         futureHandler
       }
     }
   }
 
+  /**
+    * Default route to view all events for a given topic.
+    * @return A Spray Route to view all events for a given topic.
+    */
+  def getTopicEvents: Route = path(Segment / "events") { topic =>
+    get {
+      onComplete(eventManager ? GetTopicEvents(topic)) {
+        futureHandler
+      }
+    }
+  }
 }
