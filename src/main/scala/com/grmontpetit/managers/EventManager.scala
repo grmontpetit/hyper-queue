@@ -38,7 +38,7 @@ class EventManager extends Actor with LazyLogging {
 
   val config = ConfigFactory.load()
   implicit val timeout = Timeout(config.getInt("service.timeout").seconds)
-  val queueManager = ActorCatalogue.getActor(classOf[QueueManager])
+  lazy val queueManager = ActorCatalogue.getActor(classOf[QueueManager])
 
   def receive: Receive = {
     case Consume(topic: String, id: Int)      => sender ! blockingConsume(topic, id)

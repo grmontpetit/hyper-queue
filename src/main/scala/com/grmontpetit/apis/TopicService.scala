@@ -35,9 +35,9 @@ class TopicService (implicit context: ActorRefFactory) extends HyperQueueApi {
 
   def routes = getTopics
 
-  lazy val eventManager = ActorCatalogue.getActor(classOf[EventManager])
   val configuration = ConfigFactory.load()
   implicit val timeout = Timeout(configuration.getInt("service.timeout").seconds)
+  lazy val eventManager = ActorCatalogue.getActor(classOf[EventManager])
 
   /**
     * Default route to get all the topics.

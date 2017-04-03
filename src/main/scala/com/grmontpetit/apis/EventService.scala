@@ -22,13 +22,16 @@ import akka.pattern.ask
 import akka.actor.ActorRefFactory
 import akka.util.Timeout
 import com.grmontpetit.core.ActorCatalogue
-import com.grmontpetit.managers.EventManager
-import com.grmontpetit.model.data.Event
-import com.grmontpetit.model.messages.{Consume, GenerateId, GetTopicEvents, Produce}
+import com.grmontpetit.managers.{EventManager, QueueManager}
+import com.grmontpetit.model.data.{Event, HyperQueue}
+import com.grmontpetit.model.messages._
 import com.grmontpetit.model.JsonModelObject._
+import com.grmontpetit.model.exceptions.HyperQueueException
 import com.typesafe.config.ConfigFactory
+import spray.http.StatusCodes
 import spray.routing.Route
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class EventService(implicit context: ActorRefFactory) extends HyperQueueApi {
@@ -45,6 +48,7 @@ class EventService(implicit context: ActorRefFactory) extends HyperQueueApi {
   lazy val eventManager = ActorCatalogue.getActor(classOf[EventManager])
   val configuration = ConfigFactory.load()
   implicit val timeout = Timeout(configuration.getInt("service.timeout").seconds)
+  lazy val queueManager = ActorCatalogue.getActor(classOf[QueueManager])
 
   /**
     * Default route to produce a topic, using an http POST directive.
@@ -68,14 +72,26 @@ class EventService(implicit context: ActorRefFactory) extends HyperQueueApi {
     */
   def consumeEvent: Route = path(Segment) { topic =>
     get {
+      // there is a more elegant way of doing this, going to keep it simple for now
       optionalHeaderValueByName("id") { id =>
-        if (id.isDefined) {
-          onComplete(eventManager ? Consume(topic, id.get.toInt)) {
-            futureHandler
-          }
-        } else {
-          onComplete(eventManager ? GenerateId(topic)) {
-            futureHandler
+        optionalHeaderValueByName("OFFSET") { offset =>
+          if (offset.isDefined) {
+            val newId = offset.get match {
+              case "-1" => 0
+              case "1"  => askQueueInstance.queueSize(topic)
+              case _    => throw HyperQueueException(StatusCodes.BadRequest, "Invalid OFFSET", "Invalid OFFSET")
+            }
+            onComplete(eventManager ? Consume(topic, newId.asInstanceOf[Int])) {
+              futureHandler
+            }
+          } else if (id.isDefined) {
+            onComplete(eventManager ? Consume(topic, id.get.toInt)) {
+              futureHandler
+            }
+          } else {
+            onComplete(eventManager ? GenerateId(topic)) {
+              futureHandler
+            }
           }
         }
       }
@@ -93,4 +109,11 @@ class EventService(implicit context: ActorRefFactory) extends HyperQueueApi {
       }
     }
   }
+
+  // Duplicated function
+  /**
+    * Ask the [[QueueManager]] to have access to the [[HyperQueue]].
+    * @return The [[HyperQueue]] instance.
+    */
+  private def askQueueInstance: HyperQueue = Await.result(queueManager ? GetQueueInstance, 2.seconds).asInstanceOf[HyperQueue]
 }
