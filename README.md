@@ -13,7 +13,7 @@ This is a project that simulates an In-Memory Queue.
 
 1. in the project's root folder, run
 ``` sbt run ```
-2. Send requests to the server either with post (import the given postman collection) or with the curl scripts included.
+2. Send requests to the server either with postman (https://www.getpostman.com/) (import the given postman collection) or with the curl scripts included.
 
 ## Completed features
 
