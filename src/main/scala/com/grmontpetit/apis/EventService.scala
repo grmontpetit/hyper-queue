@@ -24,7 +24,7 @@ import akka.util.Timeout
 import com.grmontpetit.core.ActorCatalogue
 import com.grmontpetit.managers.EventManager
 import com.grmontpetit.model.data.Event
-import com.grmontpetit.model.messages.{Consume, GetTopicEvents, Produce}
+import com.grmontpetit.model.messages.{Consume, GenerateId, GetTopicEvents, Produce}
 import com.grmontpetit.model.JsonModelObject._
 import com.typesafe.config.ConfigFactory
 import spray.routing.Route
@@ -62,12 +62,22 @@ class EventService(implicit context: ActorRefFactory) extends HyperQueueApi {
 
   /**
     * Default route to consume a topic, using an http GET directive.
+    * If the id key is present in the header, it is extracted and
+    * passed to the EventManager as an Int.
     * @return A Spray Route to consume an event within a topic.
     */
   def consumeEvent: Route = path(Segment) { topic =>
     get {
-      onComplete(eventManager ? Consume(topic)) {
-        futureHandler
+      optionalHeaderValueByName("id") { id =>
+        if (id.isDefined) {
+          onComplete(eventManager ? Consume(topic, id.get.toInt)) {
+            futureHandler
+          }
+        } else {
+          onComplete(eventManager ? GenerateId(topic)) {
+            futureHandler
+          }
+        }
       }
     }
   }

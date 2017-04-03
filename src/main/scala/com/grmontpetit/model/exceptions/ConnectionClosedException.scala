@@ -16,14 +16,17 @@
  * SOFTWARE.
  */
 
-package com.grmontpetit.model.messages
+package com.grmontpetit.model.exceptions
 
-import com.grmontpetit.model.data.Event
+import spray.http.MediaTypes._
+import spray.http.{HttpEntity, HttpResponse, StatusCodes}
 
-sealed trait Message
-case class Consume(topic: String, id: Int) extends Message
-case class Produce(topic: String, event: Event) extends Message
-case class GetTopics() extends Message
-case class GetTopicEvents(topic: String) extends Message
-case class GetQueueInstance() extends Message
-case class GenerateId(topic: String) extends Message
+class ConnectionClosedException extends RuntimeException("Connection Closed") {
+  def marshal() = {
+    HttpResponse(StatusCodes.NetworkConnectTimeout, HttpEntity(`text/plain`, "Connection Closed"))
+  }
+}
+
+object ConnectionClosedException {
+  def apply(e: Exception): ConnectionClosedException = new ConnectionClosedException
+}

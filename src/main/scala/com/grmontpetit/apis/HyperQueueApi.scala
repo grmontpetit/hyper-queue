@@ -21,8 +21,9 @@ package com.grmontpetit.apis
 import com.grmontpetit.model.exceptions.{HyperQueueException, TopicNotFoundException}
 import com.grmontpetit.model.JsonModelObject._
 import com.grmontpetit.model.data.ModelObject
+import spray.http.HttpHeaders.RawHeader
 import spray.http.MediaTypes._
-import spray.http.{HttpEntity, HttpResponse, StatusCodes}
+import spray.http.{HttpEntity, HttpHeader, HttpResponse, StatusCodes}
 import spray.http.StatusCodes._
 import spray.json._
 import spray.routing.{HttpService, Route, StandardRoute}
@@ -56,6 +57,10 @@ object HyperQueueApi {
   }
   case class ItemTimeout(item: ModelObject) extends HyperQueueResponseFailure {
     def marshal() = HttpResponse(StatusCodes.NetworkConnectTimeout, entity = HttpEntity(`application/json`, item.toJson.toString()))
+  }
+  case class ConsumerAccepted(id: Int) extends HyperQueueResponseSuccess {
+    val h = RawHeader("id", id.toString)
+    def marshal() = HttpResponse(StatusCodes.Accepted, headers = List(h))
   }
 
 }

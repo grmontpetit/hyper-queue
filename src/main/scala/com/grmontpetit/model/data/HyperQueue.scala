@@ -18,9 +18,11 @@
 
 package com.grmontpetit.model.data
 
+import java.util
+import java.util.Collections
 import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue, TimeUnit}
 
-import com.grmontpetit.model.exceptions.TopicNotFoundException
+import com.grmontpetit.model.exceptions.{ConnectionClosedException, TopicNotFoundException}
 
 import scala.concurrent.{Future, Promise}
 import scala.collection.JavaConverters._
@@ -29,35 +31,48 @@ import scala.concurrent.ExecutionContext.Implicits.global
 // Stateful object
 class HyperQueue() {
 
-  // key = topic, value = events
-  private val queue = new ConcurrentHashMap[String, LinkedBlockingQueue[Event]](30)
+  // When adding new List, they *must* be synchronizedList !
+  private val queue = new ConcurrentHashMap[String, util.List[Event]]
+  // store the nb of consumers registered to the broker
+  // we don't track the consumers's id, just the nb. consumers connected.
+  private var consumerQty = -1 // start at -1, on first connect it will be incremented to 0
 
   /**
-    * Adds an element to a topic queue. If the topic doesn't exist,
-    * it is added to the topic list.
-    * @param topic Under which topic the event must be added.
-    * @param event The [[Event]] to add to the topic.
+    * Adds a new event to the queue.
+    * @param topic
+    * @param event
+    * @return
     */
   def push(topic: String, event: Event) = {
     if (this.queue.containsKey(topic)) {
-      this.queue.get(topic).put(event)
+      this.queue.get(topic).add(event)
     } else {
-      val queuedEvent = new LinkedBlockingQueue[Event]()
-      queuedEvent.put(event)
+      val list = new util.ArrayList[Event]()
+      list.add(event)
+      val queuedEvent = Collections.synchronizedList(list)
+      // The list *must* be a synchronizedList
       this.queue.put(topic, queuedEvent)
     }
   }
 
   /**
-    * Pops the queue in a polling fashion for 5 seconds.
-    * @param topic The topic to pop.
-    * @return The [[Event]] wrapped in a [[Future]]
+    * Removes an event from a topic from a given id.
+    * The id is the id of the consumer.
+    * @param topic The topic to consume from
+    * @param id The id to consume
+    * @return An [[Event]] wrapped into a [[Future]]
     */
-  def pop(topic: String): Future[Event] = {
+  def pop(topic: String, id: Int): Future[Event] = {
     val p = Promise[Event]()
     Future {
       if (this.queue.containsKey(topic)) {
-        p.success(queue.get(topic).poll(5, TimeUnit.SECONDS))
+        val event = retry(5000, this.queue.get(topic), id)
+        if (event != null) {
+          this.queue.get(topic).remove(id)
+          p.success(event)
+        } else {
+          p.failure(new ConnectionClosedException)
+        }
       } else {
         p.failure(new TopicNotFoundException)
       }
@@ -66,11 +81,57 @@ class HyperQueue() {
   }
 
   /**
+    * Retries to consume an event at a position X which
+    * is represented by the id parameter.
+    * @param timeoutMilis The the retry time in ms.
+    * @param list The [[util.List]] of [[Event]]
+    * @param id The id (position) to read the queue from.
+    * @return The [[Event]] if it's found.
+    */
+  private def retry(timeoutMilis: Long, list: util.List[Event], id: Int): Event = {
+    val t0 = System.currentTimeMillis()
+    if ((list.isEmpty || list.get(id) == null) && timeoutMilis > 0) {
+      Thread.sleep(1000) // don't like this too much, too tired to use nano
+      val t1 = System.currentTimeMillis()
+      val elapsedTime = t1 - t0
+      retry(timeoutMilis - elapsedTime, list, id)
+    } else {
+      if (list.isEmpty) {
+        null
+      } else {
+        list.get(id)
+      }
+    }
+  }
+
+  /**
+    * Retrieve the nb. of registered consumers.
+    * @return The nb. of registered consumers as [Int]
+    */
+  def getRegisteredConsumersSize: Int = this.consumerQty
+
+  /**
+    * Generates an index to fetch data from.
+    * @return The index to dequeue from.
+    */
+  def generateId(): Int = {
+    this.consumerQty = consumerQty + 1
+    consumerQty
+  }
+
+  /**
     * Returns the size of the Queue for a given topic.
     * @param topic The even't topic.
     * @return The Size of the queue as an [[Int]]
     */
   def size(topic: String): Int = this.queue.get(topic).size
+
+  /**
+    * returns the size of the event list from a given queue.
+    * @param topic The even't topic.
+    * @return The Size of the queue as an [[Int]]
+    */
+  def queueSize(topic: String): Int = this.queue.get(topic).size
 
   /**
     * Retrieves the list of available topics from the queue.
@@ -84,12 +145,10 @@ class HyperQueue() {
     * @return The [[Iterable]] list of [[Event]]
     */
   def getTopicEvents(topic: String): Iterable[Event] = {
-    // gotta use the java way here
     if (this.queue.containsKey(topic)) {
       queue.get(topic).asScala
     } else {
       Iterable.empty
     }
   }
-
 }
