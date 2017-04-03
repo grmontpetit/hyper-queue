@@ -25,3 +25,4 @@ There was not enough time to produce a front-end.
 - The project doesn't have *any* unit tests / spray tests.
 - The consumers ids are not properly tracked in the backend; only the nb. of consumers is tracked.
 - The way the queue is accessed is not optimal because to consume 1 item, there is a lock (synchronize) happening everytime. A proper optimization would be to lock on multiple items within the queue based on how many consumers are registered.
+- I left a few comments in the code as to where it must be made more elegant / better structured.
