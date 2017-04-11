@@ -1,4 +1,4 @@
-organization := "mate1"
+organization := "sniggel"
 
 name := "hyper-queue"
 
