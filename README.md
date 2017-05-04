@@ -1,4 +1,6 @@
 # HyperQueue
+## Build Status
+[![Build Status](https://travis-ci.org/sniggel/hyper-queue.svg?branch=master)](https://travis-ci.org/sniggel/hyper-queue)
 
 ## About
 This is a project that simulates an In-Memory Queue.
